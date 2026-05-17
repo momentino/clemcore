@@ -434,6 +434,13 @@ class HuggingfaceLocalModel(backends.BatchGenerativeModel):
             gen_args["top_p"] = getattr(self.model.generation_config, "top_p", None)  # look in config for default value
             gen_args["temperature"] = self.temperature
 
+        # Forward penalty parameters from the model's generation_config if set, as they are not inherited reliably
+        # when other kwargs are passed explicitly to model.generate()
+        for _penalty_key in ("presence_penalty", "frequency_penalty", "repetition_penalty"):
+            _val = getattr(self.model.generation_config, _penalty_key, None)
+            if _val is not None:
+                gen_args[_penalty_key] = _val
+
         # Let CoT-output models generate to their context limit to assure CoT+final answer completion
         if 'cot_output' in self.model_spec.model_config and self.model_spec.model_config['cot_output']:
             gen_args["max_new_tokens"] = self.context_size
@@ -508,6 +515,11 @@ class HuggingfaceLocalMultimodalModel(backends.Model):
             gen_args["do_sample"] = True
             gen_args["temperature"] = self.temperature
             gen_args["top_p"] = getattr(self.model.generation_config, "top_p", None)
+
+        for _penalty_key in ("presence_penalty", "frequency_penalty", "repetition_penalty"):
+            _val = getattr(self.model.generation_config, _penalty_key, None)
+            if _val is not None:
+                gen_args[_penalty_key] = _val
 
         if self.model.training:
             stdout_logger.info("Model is in training mode; switching to eval mode for generation.")
